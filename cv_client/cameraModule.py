@@ -220,7 +220,8 @@ class CameraModule:
                 pac_px = int(round(out[0] / out[2]))
                 pac_py = int(round(out[1] / out[2]))
                 cv2.drawMarker(frame, (pac_px, pac_py), (0, 255, 255), markerType=cv2.MARKER_STAR, 
-							markerSize=8, thickness=2)
+							markerSize=8, thickness=1)
+            #frame = cv2.warpPerspective(frame, matrix, (100, 100))
 
         if pacman_row is None and pacman_col is None:
             return (32, 32)	
