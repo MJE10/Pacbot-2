@@ -36,7 +36,7 @@ class VideoCapture:
 	''' Copied from StackOverflow: https://stackoverflow.com/a/54755738 '''
 
 	def __init__(self, name: Any):
-		self.cap = cv2.VideoCapture(name)
+		self.cap = cv2.VideoCapture(name, cv2.CAP_DSHOW)
 		self.q: queue.Queue[MatLike] = queue.Queue()
 		t = threading.Thread(target=self._reader)
 		t.daemon = True
@@ -79,7 +79,7 @@ class CameraModule:
 		self.detector = aruco.ArucoDetector(self.dictionary, aruco.DetectorParameters())
 
 		# Capture object
-		self.cap = VideoCapture(0)
+		self.cap = VideoCapture(2)
 
 	async def decisionLoop(self) -> None:
 		'''
@@ -97,7 +97,7 @@ class CameraModule:
 				continue
 
 			# Process the frame
-			pacman_row, pacman_col = self.localize(img)
+			pacman_row, pacman_col = self.localize(img, annotate=True)
 
 			# If there's a wall where the Pacbot is, quit
 			if self.wallAt(pacman_row, pacman_col):
@@ -140,7 +140,7 @@ class CameraModule:
 		corners, ids, _ = self.detector.detectMarkers(img)
 
 		if ids is None:                                                              # type: ignore
-			print("ERR: No markers detected...")
+			# print("ERR: No markers detected...")
 			return 32, 32
 
 		print(ids)
@@ -194,7 +194,7 @@ class CameraModule:
 
 		# Assert that we're either in the top half or bottom half
 		if not (topHalf or bottomHalf):
-			print("ERR: The image is neither the top or bottom half")
+			print("ERR: The image is neither the top or bottom half, it was: ", ids)
 			return 32, 32
 
 		# Dimensions
@@ -238,6 +238,7 @@ class CameraModule:
 						plt.plot([vector[0]/vector[2]], [vector[1]/vector[2]], "m.") # type: ignore
 					else:
 						plt.plot([vector[0]/vector[2]], [vector[1]/vector[2]], "c.") # type: ignore
+			
 
 		# Figure out where Pacman is
 		vector = matrix @ np.array([centroids[0][0], centroids[0][1], 1])
@@ -273,6 +274,9 @@ class CameraModule:
 				pacman_transformed_col * 100 + 50, (pacman_transformed_row - offset) * 100 + 50, 1
 			])
 			plt.plot([vector[0]/vector[2]], [vector[1]/vector[2]], 'y*')                     # type: ignore
+			plt.show(block=False)
+			plt.pause(0.01)
+			plt.clf()
 
 		return pacman_transformed_row, pacman_transformed_col
 
