@@ -142,14 +142,15 @@ class CameraModule:
         # Check if top or bottom half
         topHalf = (sorted_ids == (0, 1, 2, 3, 4))
         bottomHalf = (sorted_ids == (0, 3, 4, 5, 6))
-        if not (topHalf or bottomHalf):
+        bothHalves = (sorted_ids == (0, 1, 2, 5, 6))
+        if not (topHalf or bottomHalf or bothHalves):
             print("ERR: The image is neither top nor bottom half")
             return (32, 32)
 
         # Maze dimensions for top/bottom
         width = 28
-        height = 16 if topHalf else 15
-        offset = 0 if topHalf else 16
+        height = 31 if bothHalves else 16 if topHalf else 15
+        offset = 0 if topHalf or bothHalves else 16
 
         # The four corners are the next 4 IDs after Pacman, i.e. 1,2,3,4 (if top) or 3,4,5,6 (if bottom)
         four_corners = np.array(sorted_centroids[1:5]).astype('float32')
