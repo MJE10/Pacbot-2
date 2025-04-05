@@ -63,6 +63,8 @@ class CameraModule:
                 print("ERR: NO IMAGE")
                 await asyncio.sleep(0)
                 continue
+            
+            cv2.imshow("Camera", frame)
 
             # Localize Pacman, get (row, col), also overlay annotations in-place
             pacman_row, pacman_col = self.localize(frame, annotate=True)
@@ -72,7 +74,7 @@ class CameraModule:
                 self.state.send(pacman_row, pacman_col)
 
             # Display the frame with OpenCV
-            cv2.imshow("Live Video", frame)
+            cv2.imshow("Annotated", frame)
 
             # Check if the user pressed ESC to exit
             if cv2.waitKey(1) & 0xFF == 27:
