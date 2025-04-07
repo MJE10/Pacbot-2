@@ -145,13 +145,19 @@ class CvClient:
 async def main():
 
 	# Get the URL to connect to
+
+	# Reconnection
 	connectURL = getConnectURL()
 	client = CvClient(connectURL)
-	await client.run()
+	while True:
+		await client.connect()
+		await client.run()
+		print("Connection failed. Reconnecting...")
+		await asyncio.sleep(0.5)
 
 	# Once the connection is closed, end the event loop
-	loop = asyncio.get_event_loop()
-	loop.stop()
+	# loop = asyncio.get_event_loop()
+	# loop.stop()
 
 if __name__ == '__main__':
 

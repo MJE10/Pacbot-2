@@ -10,25 +10,6 @@ from walls import wallArr
 # A dummy ConnectionState
 from connectionState import ConnectionState
 
-# A custom VideoCapture that buffers only the latest frame
-class VideoCapture:
-    def __init__(self, name: Any):
-        self.cap = cv2.VideoCapture(name, cv2.CAP_DSHOW)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        self.frame = None
-
-    def read(self):
-        # Read in a loop until we have the latest frame
-        ret, self.frame = self.cap.read()
-        if not ret:
-            return None
-        # Convert BGR -> RGB if you like, or keep BGR for drawing
-        return self.frame
-
-    def release(self):
-        self.cap.release()
-
 class CameraModule:
     """
     A camera module that:
@@ -48,7 +29,10 @@ class CameraModule:
         self.detector = aruco.ArucoDetector(self.dictionary, aruco.DetectorParameters())
 
         # Initialize capture
-        self.cap = VideoCapture(1)
+        self.cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.frame = None
 
     async def decisionLoop(self) -> None:
         """
@@ -60,7 +44,7 @@ class CameraModule:
         """
         while self.state.isConnected():
             # Get a frame (BGR by default)
-            frame = self.cap.read()
+            _, frame = self.cap.read()
             if frame is None:
                 print("ERR: NO IMAGE")
                 await asyncio.sleep(0)
@@ -86,7 +70,7 @@ class CameraModule:
             await asyncio.sleep(0)
 
         # Cleanup
-        self.cap.release()
+        # self.cap.release()
         cv2.destroyAllWindows()
 
     def wallAt(self, row: int, col: int) -> bool:
