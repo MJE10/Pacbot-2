@@ -13,7 +13,9 @@ from connectionState import ConnectionState
 # A custom VideoCapture that buffers only the latest frame
 class VideoCapture:
     def __init__(self, name: Any):
-        self.cap = cv2.VideoCapture(name)
+        self.cap = cv2.VideoCapture(name, cv2.CAP_DSHOW)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         self.frame = None
 
     def read(self):
@@ -46,7 +48,7 @@ class CameraModule:
         self.detector = aruco.ArucoDetector(self.dictionary, aruco.DetectorParameters())
 
         # Initialize capture
-        self.cap = VideoCapture(0)
+        self.cap = VideoCapture(1)
 
     async def decisionLoop(self) -> None:
         """
