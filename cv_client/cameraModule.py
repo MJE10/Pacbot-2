@@ -1,4 +1,5 @@
 import asyncio
+import time
 import cv2
 import numpy as np
 from cv2 import aruco
@@ -22,6 +23,9 @@ class CameraModule:
 
     def __init__(self, state: ConnectionState) -> None:
         self.state = state
+
+        self.last_sent = None
+        self.last_sent_time = time.time()
 
         # A dictionary of 4x4 ArUco markers
         self.dictionary = aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
@@ -50,17 +54,22 @@ class CameraModule:
                 await asyncio.sleep(0)
                 continue
             
-            cv2.imshow("Camera", frame)
+            # cv2.imshow("Camera", frame)
 
             # Localize Pacman, get (row, col), also overlay annotations in-place
             pacman_row, pacman_col = self.localize(frame, annotate=True)
 
             # If there's no wall there, send to server
             if not self.wallAt(pacman_row, pacman_col):
-                self.state.send(pacman_row, pacman_col)
+                if time.time() > 0.2 + self.last_sent_time or (pacman_row, pacman_col) != self.last_sent:
+                    self.state.send(pacman_row, pacman_col)
+                    self.last_sent_time = time.time()
+                    self.last_sent = (pacman_row, pacman_col) 
 
             # Display the frame with OpenCV
             cv2.imshow("Annotated", frame)
+            if self.frame is not None:
+                cv2.imshow("Transformed", self.frame)
 
             # Check if the user pressed ESC to exit
             if cv2.waitKey(1) & 0xFF == 27:
@@ -96,6 +105,7 @@ class CameraModule:
 
         # Draw all detected markers for debugging
         # (This outlines the markers + IDs on 'frame'.)
+        frame_to_transform = frame.copy()
         cv2.aruco.drawDetectedMarkers(frame, corners, ids)
 
         # Collect (id, centroid) pairs
@@ -183,6 +193,18 @@ class CameraModule:
         # Overlays (if annotate=True)
         # --------------------------
         if annotate:
+            # include a couple cells outside the walls to avoid cropping parts of the walls
+            extra_outside = -2
+            result_image_transform = 100 * np.array([
+                [-extra_outside, -extra_outside],
+                [width + extra_outside, -extra_outside],
+                [-extra_outside, height + extra_outside],
+                [width + extra_outside, height + extra_outside]
+            ], dtype='float32')
+
+            matrix_image_transform = cv2.getPerspectiveTransform(four_corners, result_image_transform)
+            self.frame = cv2.warpPerspective(frame_to_transform, matrix_image_transform, (width * 100, height * 100))
+            self.frame = cv2.resize(self.frame, (0,0), fx=0.4, fy=0.4)
             # 1) Draw the entire grid of cells (walls vs. open)
             #    to see them in the perspective of the camera
             for r in range(height):
@@ -208,7 +230,6 @@ class CameraModule:
                 pac_py = int(round(out[1] / out[2]))
                 cv2.drawMarker(frame, (pac_px, pac_py), (0, 255, 255), markerType=cv2.MARKER_STAR, 
 							markerSize=8, thickness=1)
-            #frame = cv2.warpPerspective(frame, matrix, (100, 100))
 
         if pacman_row is None and pacman_col is None:
             return (32, 32)	

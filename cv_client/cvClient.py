@@ -82,7 +82,7 @@ class CvClient:
 
 		# Connect to the specified URL
 		try:
-			self.connection = connect(self.connectURL)
+			self.connection = connect(self.connectURL, ping_interval=None)
 			self._socketOpen = True
 			self.state.setConnectionStatus(True)
 
