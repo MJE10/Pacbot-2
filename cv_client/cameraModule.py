@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 from cv2 import aruco
 from typing import Any
+import sys
+import socket
 
 # Simulated walls array
 from walls import wallArr
@@ -33,10 +35,12 @@ class CameraModule:
         self.detector = aruco.ArucoDetector(self.dictionary, aruco.DetectorParameters())
 
         # Initialize capture
-        self.cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+        self.cap = cv2.VideoCapture(int(sys.argv[1]), cv2.CAP_DSHOW)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         self.frame = None
+
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     async def decisionLoop(self) -> None:
         """
@@ -62,14 +66,15 @@ class CameraModule:
             # If there's no wall there, send to server
             if not self.wallAt(pacman_row, pacman_col):
                 if time.time() > 0.2 + self.last_sent_time or (pacman_row, pacman_col) != self.last_sent:
-                    self.state.send(pacman_row, pacman_col)
+                    self.sock.sendto(bytes([pacman_row, pacman_col]), ("127.0.0.1", 7777))
+                    # self.state.send(pacman_row, pacman_col)
                     self.last_sent_time = time.time()
                     self.last_sent = (pacman_row, pacman_col) 
 
             # Display the frame with OpenCV
             cv2.imshow("Annotated", frame)
             if self.frame is not None:
-                cv2.imshow("Transformed", self.frame)
+                cv2.imshow("Transformed " + str(sys.argv[1]), self.frame)
 
             # Check if the user pressed ESC to exit
             if cv2.waitKey(1) & 0xFF == 27:
@@ -126,19 +131,24 @@ class CameraModule:
             cx = int(c[:, 0].mean())
             cy = int(c[:, 1].mean())
             ids_centroids.append((marker_id, np.array([cx, cy])))
+            cv2.circle(frame, (cx, cy), 2, (0, 69, 255), -1)
 
-        if not foundPacman:
-            print("ERR: Pacman not found")
-            return (32, 32)
+        # if not foundPacman:
+        #     print("ERR: Pacman not found")
+        #     return (32, 32)
 
         # Sort by ID
         ids_centroids.sort(key=lambda x: x[0])
-        sorted_ids, sorted_centroids = zip(*ids_centroids)
+        try:
+            sorted_ids, sorted_centroids = zip(*ids_centroids)
+        except Exception:
+            print('Uh oh!')
+            return (32, 32)
 
         # Check if top or bottom half
-        topHalf = (sorted_ids == (0, 1, 2, 3, 4))
-        bottomHalf = (sorted_ids == (0, 3, 4, 5, 6))
-        bothHalves = (sorted_ids == (0, 1, 2, 5, 6))
+        topHalf = all(map(lambda x: x in sorted_ids, (1, 2, 3, 4)))
+        bottomHalf = all(map(lambda x: x in sorted_ids, (3, 4, 5, 6)))
+        bothHalves = all(map(lambda x: x in sorted_ids, (1, 2, 5, 6)))
         if not (topHalf or bottomHalf or bothHalves):
             print("ERR: The image is neither top nor bottom half")
             return (32, 32)
@@ -146,17 +156,31 @@ class CameraModule:
         # Maze dimensions for top/bottom
         width = 28
         height = 31 if bothHalves else 16 if topHalf else 15
+        #height = 31 if bothHalves else 16 if topHalf else 15
         offset = 0 if topHalf or bothHalves else 16
 
         # The four corners are the next 4 IDs after Pacman, i.e. 1,2,3,4 (if top) or 3,4,5,6 (if bottom)
-        four_corners = np.array(sorted_centroids[1:5]).astype('float32')
-        # Perspective mapping
-        result = 100 * np.array([
-            [0, 0],
-            [width, 0],
+        if len(sorted_centroids) == 4:
+            four_corners = np.array(sorted_centroids[0:4]).astype('float32')
+        else:
+            four_corners = np.array(sorted_centroids[1:5]).astype('float32')
+        corner_locs = [
+            [2, -2],
+            [width-2, -2],
             [0, height],
             [width, height]
-        ], dtype='float32')
+        ]
+
+        if topHalf:
+            corner_locs = [
+                [3, 3],
+                [24, 3],
+                [1, 14],
+                [26, 14]
+            ]
+
+        # Perspective mapping
+        result = 100 * np.array(corner_locs, dtype='float32')
 
         matrix = cv2.getPerspectiveTransform(four_corners, result)
         inverse = np.linalg.inv(matrix)
@@ -186,6 +210,8 @@ class CameraModule:
         else:
             print("ERR: Pacman is apparently in a wall area.")
             #return (32, 32)
+        if not foundPacman:
+            pacman_row, pacman_col = (32, 32)
 
         # The best neighbor by distance
         
@@ -194,12 +220,12 @@ class CameraModule:
         # --------------------------
         if annotate:
             # include a couple cells outside the walls to avoid cropping parts of the walls
-            extra_outside = -2
+            extra_outside = -0.2
             result_image_transform = 100 * np.array([
-                [-extra_outside, -extra_outside],
-                [width + extra_outside, -extra_outside],
-                [-extra_outside, height + extra_outside],
-                [width + extra_outside, height + extra_outside]
+                [-extra_outside * width, -extra_outside * height],
+                [width + extra_outside * width, -extra_outside * height],
+                [-extra_outside* width, height + extra_outside * height],
+                [width + extra_outside* width, height + extra_outside * height]
             ], dtype='float32')
 
             matrix_image_transform = cv2.getPerspectiveTransform(four_corners, result_image_transform)
