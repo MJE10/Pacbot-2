@@ -6,6 +6,10 @@ from cv2 import aruco
 from typing import Any
 import sys
 import socket
+import subprocess
+
+DEST_IP = sys.argv[2] if len(sys.argv) >= 3 else None
+PORT = 1234 + int(sys.argv[1])
 
 # Simulated walls array
 from walls import wallArr
@@ -42,6 +46,23 @@ class CameraModule:
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+        if DEST_IP is not None:
+            ffmpeg_cmd = [
+                'ffmpeg',
+                '-y',
+                '-f', 'rawvideo',
+                '-vcodec', 'rawvideo',
+                '-pix_fmt', 'bgr24',
+                '-s', '640x480',
+                '-r', '30',
+                '-i', '-',  # Read input from stdin
+                '-f', 'mpegts',
+                f'udp://{DEST_IP}:{PORT}'
+            ]
+
+            # Start FFmpeg process
+            self.ffmpeg_proc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
+
     async def decisionLoop(self) -> None:
         """
         Asynchronous decision loop for CV. We:
@@ -75,6 +96,9 @@ class CameraModule:
             cv2.imshow("Annotated", frame)
             if self.frame is not None:
                 cv2.imshow("Transformed " + str(sys.argv[1]), self.frame)
+                self.ffmpeg_proc.stdin.write(self.frame.tobytes())
+            else:
+                self.ffmpeg_proc.stdin.write(frame.tobytes())
 
             # Check if the user pressed ESC to exit
             if cv2.waitKey(1) & 0xFF == 27:
