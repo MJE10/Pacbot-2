@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         println!("Connecting to WebSocket...");
 
-        match connect_async(Url::parse("ws://localhost:3002")?).await {
+        match connect_async(Url::parse("ws://192.168.8.117:3002")?).await {
             Ok((ws_stream, _)) => {
                 println!("Connected to WebSocket!");
                 let (mut ws_write, mut ws_read) = ws_stream.split();

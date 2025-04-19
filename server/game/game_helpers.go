@@ -280,7 +280,7 @@ func (gs *gameState) movePacmanDir(dir uint8) {
 
 	// Ignore the command if the game is paused
 	if gs.isPaused() || gs.getPauseOnUpdate() {
-		return
+		// return
 	}
 
 	// Shorthand to make computation simpler

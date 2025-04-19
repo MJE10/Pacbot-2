@@ -96,9 +96,10 @@ class CameraModule:
             cv2.imshow("Annotated", frame)
             if self.frame is not None:
                 cv2.imshow("Transformed " + str(sys.argv[1]), self.frame)
-                self.ffmpeg_proc.stdin.write(self.frame.tobytes())
+                # self.ffmpeg_proc.stdin.write(self.frame.tobytes())
             else:
-                self.ffmpeg_proc.stdin.write(frame.tobytes())
+                pass
+                # self.ffmpeg_proc.stdin.write(frame.tobytes())
 
             # Check if the user pressed ESC to exit
             if cv2.waitKey(1) & 0xFF == 27:
@@ -189,19 +190,19 @@ class CameraModule:
         else:
             four_corners = np.array(sorted_centroids[1:5]).astype('float32')
         corner_locs = [
-            [2, -2],
-            [width-2, -2],
+            [0, 0],
+            [width, 0],
             [0, height],
             [width, height]
         ]
 
-        if topHalf:
-            corner_locs = [
-                [3, 3],
-                [24, 3],
-                [1, 14],
-                [26, 14]
-            ]
+        # if topHalf:
+        #     corner_locs = [
+        #         [3, 3],
+        #         [24, 3],
+        #         [1, 14],
+        #         [26, 14]
+        #     ]
 
         # Perspective mapping
         result = 100 * np.array(corner_locs, dtype='float32')
